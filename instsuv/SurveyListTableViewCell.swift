@@ -13,8 +13,4 @@ class SurveyListTableViewCell: UITableViewCell {
     @IBOutlet weak var creatorDisplayName: UILabel!
     @IBOutlet weak var endSurveyTime: UILabel!
     @IBOutlet weak var surveyTopic: UILabel!
-    
-    
-
-    
 }

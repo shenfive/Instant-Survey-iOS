@@ -11,7 +11,8 @@ import Firebase
 import CoreLocation
 import MapKit
 
-class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSource{
+class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, MKMapViewDelegate {
+    @IBOutlet weak var answerMap: UIButton!
     
 
     
@@ -23,7 +24,8 @@ class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSo
     var selectedSuveryID:String=""
     
     var locationManager:CLLocationManager? = CLLocationManager()
-    
+
+    var mapItems:Dictionary<String,Any> = Dictionary<String,Any>()
     
     var surveyDataSource:Array<Any>?
     var surveyIndex:Array<Any>?
@@ -36,12 +38,10 @@ class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSo
         super.viewDidLoad()
         
         locationManager?.requestWhenInUseAuthorization()
-        let now = locationManager?.location?.coordinate
-        
         surveryMap.showsUserLocation = true
-        let span = MKCoordinateSpanMake(0.01, 0.01)
-        let region = MKCoordinateRegionMake(now!, span)
-        surveryMap.setRegion(region, animated: true)
+        surveryMap.delegate = self
+        
+
         
         
         //xib的名稱
@@ -56,12 +56,13 @@ class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSo
         mySurveyList.dataSource = self
         
         
+        updateSurveyMap()
         
-        
-        let ref = FIRDatabase.database().reference().child("survey/idlist/10000")
-        updateSurveyListView(surveyTableDBref:  ref)
+//        let ref = FIRDatabase.database().reference().child("survey/idlist/10000")
+//        updateSurveyListView(surveyTableDBref:  ref)
 
     }
+    
     
     
     @IBAction func checkSurvey(_ sender: UIButton) {
@@ -74,6 +75,10 @@ class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSo
             showAlert(message: "請輸入代碼！")
         }
 
+    }
+
+    @IBAction func surveyMap(_ sender: UIButton) {
+        updateSurveyMap()
     }
     
     @IBAction func systemSurvey(_ sender: UIButton) {
@@ -103,7 +108,7 @@ class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSo
     }
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 60
+        return 90
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt: IndexPath){
@@ -128,8 +133,14 @@ class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSo
         
         
         if let item = self.surveyDataSource?[indexPath.row] as? NSDictionary{
+           
             
             cell.surveyTopic.text = item.object(forKey: "topic") as? String
+
+            
+            print(cell.surveyTopic.text)
+            
+            
             cell.creatorDisplayName.text = item.object(forKey: "creatorDisplayname") as? String
             let endOfSurvey = self.nToDate(datenumber: Int64((item.object(forKey: "endOfSurveyTime") as! String))!)
             let formatter = DateFormatter()
@@ -146,7 +157,81 @@ class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSo
         return cell
     }
     
+    
+    func updateSurveyMap(){
+        
+        self.surveryMap.isHidden = false
+        
+        let now = locationManager?.location?.coordinate
+        let span = MKCoordinateSpanMake(0.01, 0.01)
+        let region = MKCoordinateRegionMake(now!, span)
+        surveryMap.setRegion(region, animated: true)
+        surveryMap.mapType = .standard
+        
+        
+        let ref = FIRDatabase.database().reference().child("/survey/locationList")
+        showWaiting()
+        ref.observeSingleEvent(of: .value, with: {(snapshot) in
+        
+            let count = snapshot.childrenCount
+            if count == 0 {
+                self.showAlert(message: "查無資料！")
+                self.stopWaiting()
+                return
+            }
+            
+            self.mapItems = Dictionary<String,Any>()
+            let values = snapshot.value as! NSDictionary
+            
+            for item in values{
+                // 這兒應該加上過期移除裝問卷
+                //
+                //
+                
+                
+                
+                self.mapItems[item.key as! String] = item.value as! NSDictionary
+                print("\(item.key as! String),,,,,\(item.value)")
+                print(self.mapItems.count)
+                
+                
+                
+                
+                let annotation = MKPointAnnotation()
+                let theSuvey = item.value as! NSDictionary
+                let la = theSuvey.value(forKey: "la") as! CLLocationDegrees
+                let ro = theSuvey.value(forKey: "lo") as! CLLocationDegrees
+                // 是不是應該比較只放附近的座標？
+                let theSurveyLocation = CLLocationCoordinate2DMake(la, ro)
+                annotation.title = theSuvey.value(forKey: "topic") as? String
+                let eod = self.nToDate(datenumber: Int64((theSuvey.value(forKey: "endOfSurveyTime") as? String)!)!)
+                let dateFormat = DateFormatter()
+                dateFormat.dateFormat = "YYYY-MM-dd hh:mm"
+                let dateString = dateFormat.string(from: eod)
+                annotation.subtitle = dateString
+                annotation.coordinate = theSurveyLocation
+                annotation.accessibilityLabel = item.key as! String
+                self.surveryMap.addAnnotation(annotation)
+                
+                
+            }
+            
+            self.stopWaiting()
+        }){(error) in
+            self.stopWaiting()
+        }
+        
+
+    }
+    
+    
+    func location(){
+        print("Test")
+    }
+    
     func updateSurveyListView(surveyTableDBref:FIRDatabaseReference){
+        self.answerMap.isHidden = true
+        self.surveryMap.isHidden = true
         showWaiting()
         surveyTableDBref.observeSingleEvent(of: .value, with: { (snapshot) in
             
@@ -172,6 +257,33 @@ class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSo
         }) { (error) in
             
         }  
+    }
+    
+    func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+        self.answerMap.isHidden = false
+        
+        for item in self.mapItems{
+            let itemValue = item.value as! NSDictionary
+            if itemValue.value(forKey: "la") as! CLLocationDegrees == view.annotation?.coordinate.latitude &&
+                itemValue.value(forKey: "lo") as! CLLocationDegrees == view.annotation?.coordinate.longitude
+                {
+                    self.selectedSuveryID = item.key
+                    break
+                }
+        }
+        
+        
+        
+    }
+    
+    func mapView(_ mapView: MKMapView, didDeselect view: MKAnnotationView) {
+        self.answerMap.isHidden = true
+    }
+    
+
+    @IBAction func selectMapSurvey(_ sender: UIButton) {
+    
+        self.performSegue(withIdentifier: "gotoFillSurvey", sender: "Start")
     }
     
 }

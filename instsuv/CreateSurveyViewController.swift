@@ -151,6 +151,9 @@ class CreateSurveyViewController: UIViewController, UIPickerViewDelegate ,UIPick
         //按下確定後的處理
         let comformButton = UIAlertAction(title: "確定", style: UIAlertActionStyle.default) { (action) in
             
+            //取得目前位置
+            let currentLocation = self.locationManager?.location?.coordinate
+            
             // 產生 showID
             var showID = Int( arc4random() % 89999 ) + 10001
             if self.userDisplayName() == "Survey    Adm" {
@@ -167,6 +170,10 @@ class CreateSurveyViewController: UIViewController, UIPickerViewDelegate ,UIPick
             ref.child("allowAnonymity").setValue("\(self.anonSwich.isOn)")
             ref.child("suggest").setValue("\(self.suggestSwitch.isOn)")
             ref.child("numberOfOption").setValue("\(self.numberForOptionsID+2)")
+            
+            //位置
+            ref.child("la").setValue(currentLocation?.latitude)
+            ref.child("lo").setValue(currentLocation?.longitude)
             
             //主題與選項
             ref.child("creatorDisplayname").setValue(self.userDisplayName())
@@ -222,6 +229,7 @@ class CreateSurveyViewController: UIViewController, UIPickerViewDelegate ,UIPick
             ref = FIRDatabase.database().reference().child("user/\(self.userUid())/mySurvey/\(surveyUUID)")
             
             ref.child("endOfSurveyTime").setValue("\(endOfSurveyTimeNumber)")
+            ref.child("creatorDisplayname").setValue(self.userDisplayName())
             ref.child("showID").setValue(String(showID))
             ref.child("topic").setValue(self.topic.text)
             
@@ -236,9 +244,9 @@ class CreateSurveyViewController: UIViewController, UIPickerViewDelegate ,UIPick
             ref.child("topic").setValue(self.topic.text)
             ref.child("endOfSurveyTime").setValue("\(endOfSurveyTimeNumber)")
             
-            let currentLocation = self.locationManager?.location?.coordinate
+
             ref.child("la").setValue(currentLocation?.latitude)
-            ref.child("ro").setValue(currentLocation?.longitude)
+            ref.child("lo").setValue(currentLocation?.longitude)
             
 
             
