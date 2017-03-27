@@ -8,6 +8,8 @@
 
 import UIKit
 import Firebase
+import CoreLocation
+
 
 class CreateSurveyViewController: UIViewController, UIPickerViewDelegate ,UIPickerViewDataSource {
 
@@ -32,6 +34,9 @@ class CreateSurveyViewController: UIViewController, UIPickerViewDelegate ,UIPick
     @IBOutlet weak var selection: UIPickerView!
     @IBOutlet weak var optionNumber: UILabel!
     @IBOutlet weak var surveyPeriod: UILabel!
+    
+    var locationManager:CLLocationManager? = CLLocationManager()
+    
     
     let selections = ["選項數量","有效時間"]
     let numberStringForOption = ["二個","三個","四個","五個"]
@@ -81,6 +86,7 @@ class CreateSurveyViewController: UIViewController, UIPickerViewDelegate ,UIPick
         selection.dataSource = self
         selection.delegate = self
         setNumberOfOptionView(numberOfOption: 2)
+        locationManager?.requestWhenInUseAuthorization()
 
     }
     
@@ -223,6 +229,18 @@ class CreateSurveyViewController: UIViewController, UIPickerViewDelegate ,UIPick
             let formatter = DateFormatter()
             formatter.locale = Locale.current
             formatter.dateFormat = "M/dd HH:mm"
+            
+            //寫入區域清單
+            ref = FIRDatabase.database().reference().child("survey/locationList/\(surveyUUID)")
+            ref.child("creatorDisplayname").setValue(self.userDisplayName())
+            ref.child("topic").setValue(self.topic.text)
+            ref.child("endOfSurveyTime").setValue("\(endOfSurveyTimeNumber)")
+            
+            let currentLocation = self.locationManager?.location?.coordinate
+            ref.child("la").setValue(currentLocation?.latitude)
+            ref.child("ro").setValue(currentLocation?.longitude)
+            
+
             
             //清除表單
             self.resetForm()

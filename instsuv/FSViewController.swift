@@ -9,6 +9,7 @@
 import UIKit
 import Firebase
 import CoreLocation
+import MapKit
 
 class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSource{
     
@@ -18,9 +19,10 @@ class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSo
 
     @IBOutlet weak var mySurveyList: UITableView!
     
+    @IBOutlet weak var surveryMap: MKMapView!
     var selectedSuveryID:String=""
     
-    var locationManager:CLLocationManager = CLLocationManager()
+    var locationManager:CLLocationManager? = CLLocationManager()
     
     
     var surveyDataSource:Array<Any>?
@@ -33,9 +35,13 @@ class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSo
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        locationManager.requestWhenInUseAuthorization()
-        let now = locationManager.location?.coordinate
-        print("location la:\(now?.latitude)")
+        locationManager?.requestWhenInUseAuthorization()
+        let now = locationManager?.location?.coordinate
+        
+        surveryMap.showsUserLocation = true
+        let span = MKCoordinateSpanMake(0.01, 0.01)
+        let region = MKCoordinateRegionMake(now!, span)
+        surveryMap.setRegion(region, animated: true)
         
         
         //xib的名稱
@@ -48,6 +54,8 @@ class FSViewController: UIViewController, UITableViewDelegate, UITableViewDataSo
         
         mySurveyList.delegate = self
         mySurveyList.dataSource = self
+        
+        
         
         
         let ref = FIRDatabase.database().reference().child("survey/idlist/10000")
